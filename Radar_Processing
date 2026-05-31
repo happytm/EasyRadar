@@ -1,0 +1,98 @@
+import processing.serial.*;
+
+Serial radarPort;
+float angle, distance, speed;
+
+int radarRadius;
+PFont radarFont;
+
+void setup() {
+  size(1600, 900);
+  radarRadius = height - 150;
+  radarFont = createFont("Arial", 16);
+  textFont(radarFont);
+  radarPort = new Serial(this, "COM5", 115200);   // Change the com port.
+  radarPort.bufferUntil('\n');
+  
+  angle = 0;
+  distance = 0;
+  speed = 0;
+}
+
+void draw() {
+  background(0);
+  translate(width/2, height - 70);
+  drawRadarDisplay();
+  displayTarget(angle, distance, speed);
+}
+
+void serialEvent(Serial port) {
+  String in = port.readStringUntil('\n');
+  if(in != null){
+    in = trim(in);
+    String[] values = split(in, ',');
+    if(values.length == 3){
+      angle = float(values[0]);
+      distance = float(values[1]);
+      speed = float(values[2]);
+    }
+  }
+}
+
+void drawRadarDisplay(){
+  stroke(0, 255, 0);
+  strokeWeight(1);
+  noFill();
+
+  // Arcs from -60° to +60°
+  for(int r = radarRadius/4; r <= radarRadius; r += radarRadius/4) {
+    arc(0, 0, r*2, r*2, radians(-150), radians(-30));
+  }
+  
+  // Explicitly draw lines at every required angle (-60, -45, -30, -15, 0, 15, 30, 45, 60)
+  int[] angles = {-60, -45, -30, -15, 0, 15, 30, 45, 60};
+  
+  for(int i = 0; i < angles.length; i++){
+    float currentAngle = angles[i];
+    float rad = radians(currentAngle - 90);
+    float x = radarRadius * cos(rad);
+    float y = radarRadius * sin(rad);
+    
+    strokeWeight(1);
+    stroke(0, 255, 0);
+    line(0, 0, x, y);
+    
+    fill(0, 255, 0);
+    noStroke();
+    textAlign(CENTER, CENTER);
+    textSize(14);
+    
+    float tx = (radarRadius + 20) * cos(rad);
+    float ty = (radarRadius + 20) * sin(rad);
+    text(currentAngle + "°", tx, ty);
+  }
+  
+  // center vertical line at 0 degrees upwards
+  stroke(0,255,0);
+  line(0,0,0,-radarRadius);
+}
+
+void displayTarget(float angleDeg, float distanceMM, float spd){
+  if(distanceMM <= 8000){
+    float scaledDist = map(distanceMM, 0, 8000, 0, radarRadius);
+    float rad = radians(angleDeg - 90);
+    float x = scaledDist * cos(rad);
+    float y = scaledDist * sin(rad);
+    
+    fill(255,0,0);
+    noStroke();
+    ellipse(x,y,14,14);
+    
+    fill(255);
+    textSize(16);
+    textAlign(LEFT, CENTER);
+    text("Angle: " + nf(angleDeg,1,1) + "°", -width/2 + 20, -radarRadius - 50);
+    text("Distance: " + nf(distanceMM/1000.0,1,2) + " m", -width/2 + 20, -radarRadius - 25);
+    text("Speed: " + nf(spd,1,2) + " cm/s", -width/2 + 20, -radarRadius);
+  }
+}
